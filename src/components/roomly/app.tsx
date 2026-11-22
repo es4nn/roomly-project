@@ -1,62 +1,1330 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useRouter } from '@tanstack/react-router';
-import { Building2, LayoutDashboard, CalendarDays, DoorOpen, BookOpen, ShieldCheck, Settings, ChevronDown, ChevronRight, ChevronLeft, Plus, ArrowUpRight, ArrowRight, Search, Users, MapPin, Monitor, Wifi, AirVent, Presentation, Video, Clock3, Check, Sun, Moon, Menu, X, LogOut, CircleHelp, Pencil, Trash2, SlidersHorizontal, CalendarCheck2, CheckCircle2, Coffee } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useWorkspace } from './workspace';
-import { dayString, overlaps, pages, pagePaths, type Page, type Room, type Reservation } from '@/lib/roomly';
-import roomA from '@/assets/conference-a101.asset.json';
-import roomB from '@/assets/conference-b202.asset.json';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  Building2,
+  LayoutDashboard,
+  CalendarDays,
+  DoorOpen,
+  BookOpen,
+  ShieldCheck,
+  Settings,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  ArrowUpRight,
+  ArrowRight,
+  Search,
+  Users,
+  MapPin,
+  Monitor,
+  Wifi,
+  AirVent,
+  Presentation,
+  Video,
+  Clock3,
+  Check,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  LogOut,
+  CircleHelp,
+  Pencil,
+  CalendarCheck2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useRoomlyAuth } from "./auth-state";
+import { useWorkspace } from "./workspace";
+import { JoinOrganization, InviteEmployee } from "./invites";
+import {
+  dayString,
+  overlaps,
+  canCancelReservation,
+  pages,
+  pagePaths,
+  type Page,
+  type Room,
+  type Reservation,
+} from "@/lib/roomly";
+import roomA from "@/assets/conference-a101.asset.json";
+import roomB from "@/assets/conference-b202.asset.json";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 const navIcons = [LayoutDashboard, CalendarDays, DoorOpen, BookOpen, ShieldCheck, Settings];
-const equipmentIcons: Record<string, typeof Monitor> = { Monitor, 'Wi-Fi': Wifi, Tablica: Presentation, Klimatyzacja: AirVent, Wideokonferencja: Video };
-const fmtDate = (date: string, options: Intl.DateTimeFormatOptions = { day:'numeric', month:'long' }) => new Date(date).toLocaleDateString('pl-PL',options);
-const fmtTime = (date: string) => new Date(date).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
-export function Brand() { return <Link to="/" className="brand"><span className="brand-icon"><DoorOpen size={34} strokeWidth={2.5}/></span>roomly<span className="text-primary">.</span></Link>; }
-export function RoomlyApp({page}: {page: Page}) {
-  const {workspace:w,live,busy,book,cancel,saveRoom,saveProfile,setRole,changeDemoRole,refresh} = useWorkspace();
-  const [mobile,setMobile]=useState(false), [dark,setDark]=useState(false);
-  const [date,setDate]=useState(() => !live && w.reservations[0] ? dayString(new Date(w.reservations[0].starts_at)) : dayString(new Date()));
-  const [start,setStart]=useState('11:00'), [end,setEnd]=useState('12:00'), [checked,setChecked]=useState(false), [search,setSearch]=useState(''), [capacity,setCapacity]=useState('0');
-  const [booking,setBooking]=useState(false),[bookingRoom,setBookingRoom]=useState(''),[bookingTitle,setBookingTitle]=useState(''),[error,setError]=useState('');
-  const [editing,setEditing]=useState<Room|null>(null),[roleModal,setRoleModal]=useState(false),[confirmCancel,setConfirmCancel]=useState<string|null>(null);
-  const [profileName,setProfileName]=useState(w.displayName), [orgName,setOrgName]=useState(''), [week,setWeek]=useState(false), [calendarRoom,setCalendarRoom]=useState('all');
-  const navigate=useNavigate(); const router=useRouter();
-  useEffect(()=>{document.documentElement.classList.toggle('dark',dark); return ()=>document.documentElement.classList.remove('dark');},[dark]);
-  const activeRows=w.reservations.filter(r=>r.status==='active');
-  const ownRows=activeRows.filter(r=>r.user_id===w.userId).sort((a,b)=>Date.parse(a.starts_at)-Date.parse(b.starts_at));
-  const upcoming=ownRows.filter(r=>Date.parse(r.ends_at)>Date.now());
-  const filteredRooms=w.rooms.filter(r=>r.is_active && r.name.toLowerCase().includes(search.toLowerCase()) && r.capacity>=Number(capacity));
-  const available=(roomId:string)=>!activeRows.some(r=>r.room_id===roomId && overlaps(new Date(`${date}T${start}`).toISOString(),new Date(`${date}T${end}`).toISOString(),r.starts_at,r.ends_at));
-  const openBooking=(id='',time?:string,day?:string)=>{setBookingRoom(id || w.rooms.find(r=>r.is_active)?.id || '');setBookingTitle('');setError('');if(time){setStart(time);setEnd(`${String(Number(time.slice(0,2))+1).padStart(2,'0')}:00`);}if(day)setDate(day);setBooking(true);};
-  const go=(index:number)=>{setMobile(false); if(live) navigate({to:'/app/$view',params:{view:String(index)}}); else {const path=pagePaths[index];if(path)navigate({to:path});}};
-  const handleError=(e:unknown)=>toast.error(e instanceof Error?e.message:'Nie udało się wykonać operacji.');
-  const submitBooking=async(e:FormEvent)=>{e.preventDefault();try{await book(bookingRoom,date,start,end,bookingTitle);setBooking(false);}catch(e){setError(e instanceof Error?e.message:'Nie udało się zapisać rezerwacji.');}};
-  const orgCreate=async(e:FormEvent)=>{e.preventDefault();setError('');try {const {error}=await supabase.rpc('roomly_create_organization',{org_name:orgName});if(error)throw error;await refresh();}catch(e){setError(e instanceof Error?e.message:'Nie udało się utworzyć organizacji.');}};
-  const signOut=async()=>{await router.options.context.queryClient.cancelQueries();router.options.context.queryClient.clear();await supabase.auth.signOut();await navigate({to:'/auth',replace:true});};
-  const visibleRows=page==='Moje rezerwacje'?w.reservations.filter(r=>r.user_id===w.userId):page==='Administracja'?w.reservations:upcoming;
-  function ReservationTable({rows}: {rows:Reservation[]}) {return <div className="table-wrap"><table className="reservation-table"><thead><tr><th>Spotkanie</th><th>Sala</th><th>Data i godzina</th><th>Status</th><th></th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td><span className="meeting-name"><span className="meeting-icon"><CalendarDays size={15}/></span>{r.title}</span></td><td>{w.rooms.find(room=>room.id===r.room_id)?.name}</td><td><span>{fmtDate(r.starts_at,{day:'numeric',month:'short'})}</span><span className="text-muted-foreground ml-3">{fmtTime(r.starts_at)} – {fmtTime(r.ends_at)}</span></td><td><span className={r.status==='active'?'status-tag':'text-muted-foreground'}>{r.status==='active'?'Potwierdzona':'Anulowana'}</span></td><td>{r.status==='active'&&(w.role==='admin'||r.user_id===w.userId&&Date.parse(r.starts_at)>Date.now())?<Button variant="ghost" size="icon" aria-label={`Anuluj ${r.title}`} title="Anuluj rezerwację" onClick={()=>setConfirmCancel(r.id)}><X size={14}/></Button>:null}</td></tr>)}</tbody></table>{rows.length===0&&<div className="empty-state"><CalendarCheck2 className="mx-auto mb-3" size={28}/><p>Nie masz jeszcze rezerwacji w tym widoku.</p><Button variant="outline" onClick={()=>openBooking()}><Plus/>Nowa rezerwacja</Button></div>}</div>;}
-  const renderRoom=(room:Room,index:number)=>{const free=available(room.id);return <article className="room-card" key={room.id}><div className="room-photo"><img src={index%2===0?roomA.url:roomB.url} alt={`Wnętrze ${room.name}`} /><span className={`room-status ${!free?'text-warning':''}`}><i className="status-dot"/>{free?'Dostępna':'Zarezerwowana'}</span></div><div className="room-body"><div className="room-title"><h3>{room.name}</h3><span className="room-capacity"><Users size={14}/>{room.capacity} miejsc</span></div><div className="room-location"><MapPin size={12}/>{room.location}</div><div className="equipment">{room.equipment.map(eq=>{const Icon=equipmentIcons[eq]??Check;return <span key={eq}><Icon/>{eq}</span>;})}</div><div className="room-footer"><span>{free?'Wolna w wybranym terminie':'Zajęta w wybranym terminie'}</span><Button variant="outline" size="sm" onClick={()=>openBooking(room.id)}>Zarezerwuj<ArrowUpRight size={13}/></Button></div></div></article>;};
-  const filterBar=<div className="availability-filter"><div className="field filter-field"><label htmlFor="filter-date">Data spotkania</label><input id="filter-date" type="date" value={date} onChange={e=>{setDate(e.target.value);setChecked(false);}} required/></div><div className="field filter-field"><label htmlFor="filter-start">Od godziny</label><input id="filter-start" type="time" value={start} onChange={e=>{setStart(e.target.value);setChecked(false);}} required/></div><div className="field filter-field"><label htmlFor="filter-end">Do godziny</label><input id="filter-end" type="time" value={end} onChange={e=>{setEnd(e.target.value);setChecked(false);}} required/></div><Button variant="outline" onClick={()=>{if(!date||!start||!end||end<=start){toast.error('Wybierz poprawny termin.');return;}setChecked(true);}}><Search/>{checked?'Zmień termin':'Sprawdź dostępność'}</Button></div>;
-  return <div className="roomly-layout">
-    <aside className={`sidebar ${mobile?'open':''}`}><Brand/><div className="workspace-select"><span className="workspace-icon"><Building2 size={17}/></span><div className="min-w-0 flex-1"><div className="text-xs font-semibold truncate">{w.organization?.name??'Twoja organizacja'}</div><div className="text-muted-foreground text-[10px] mt-1">Przestrzeń organizacji</div></div><ChevronDown size={13}/></div><div className="nav-label">PRZESTRZEŃ ROBOCZA</div><nav className="nav-items">{pages.map((name,i)=>{const Icon=navIcons[i]??LayoutDashboard;if(i===4&&w.role!=='admin')return null;return <Button key={name} variant="ghost" className={`nav-item justify-start ${name===page?'active':''}`} onClick={()=>go(i)}><Icon/>{name}{i===3&&upcoming.length>0?<span className="count-tag ml-auto">{upcoming.length}</span>:null}</Button>;})}</nav><div className="sidebar-bottom"><Button variant="ghost" className="nav-item w-full justify-start" onClick={()=>navigate({to:'/o-roomly'})}><CircleHelp/>O Roomly<ArrowUpRight className="ml-auto"/></Button>{!live&&<div className="demo-note"><span className="demo-badge">TRYB DEMO</span><p>Fikcyjne dane, prawdziwa wygoda.<br/>Zmiany znikają po odświeżeniu.</p><Button variant="outline" size="sm" className="w-full" onClick={()=>setRoleModal(true)}>Zmień rolę<ChevronDown/></Button></div>}<div className="flex items-center gap-3 border-t border-border pt-4 px-2"><span className="avatar">{w.displayName.slice(0,2).toUpperCase()||'TY'}</span><div className="min-w-0"><div className="text-xs font-semibold truncate">{w.displayName||'Moje konto'}</div><div className="text-[10px] text-muted-foreground mt-1">{w.role==='admin'?'Administrator':'Pracownik'}{!live?' · Demo':''}</div></div><Button variant="ghost" size="icon" className="ml-auto" aria-label={live?'Wyloguj się':'Zaloguj się'} title={live?'Wyloguj się':'Zaloguj się'} onClick={()=>live?signOut():navigate({to:'/auth'})}><LogOut size={15}/></Button></div></div></aside>
-    <main className="app-main"><header className="topbar"><div className="topbar-left"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Otwórz menu" onClick={()=>setMobile(!mobile)}><Menu/></Button><span>Przestrzeń robocza</span><ChevronRight size={12}/><span className="text-foreground">{page}</span></div><div className="topbar-right"><span className="topbar-date text-xs text-muted-foreground">{new Date().toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'})}</span>{!live&&<span className="demo-badge">DEMO</span>}<Button variant="ghost" size="icon" aria-label={dark?'Włącz jasny motyw':'Włącz ciemny motyw'} title="Zmień motyw" onClick={()=>setDark(!dark)}>{dark?<Sun/>:<Moon/>}</Button><span className="topbar-profile avatar">{w.displayName.slice(0,2).toUpperCase()||'TY'}</span></div></header>
-    <div className="app-content">
-    {!w.organization&&live?<><div className="page-heading"><div><h1>Twoja przestrzeń, Twoje spotkania.</h1><p className="page-subtitle">Utwórz organizację i zaproś swój zespół do lepszej pracy.</p></div></div><form className="auth-form max-w-md" onSubmit={orgCreate}><div className="field"><label htmlFor="org-name">Nazwa organizacji</label><input id="org-name" minLength={2} maxLength={100} required value={orgName} onChange={e=>setOrgName(e.target.value)}/></div>{error&&<p className="form-error">{error}</p>}<Button type="submit"><Building2/>Utwórz organizację</Button></form></>:<>
-    <div className="page-heading"><div><h1>{page==='Dashboard'?`Dzień dobry, ${w.displayName.split(' ')[0]||'witaj'}!`:page}{page==='Dashboard'&&<span className="ml-2 text-xl">☀️</span>}</h1><p className="page-subtitle">{page==='Dashboard'?'Dobra przestrzeń to początek dobrego spotkania. Co dziś planujesz?':page==='Kalendarz'?'Wspólny kalendarz. Miejsce dla każdego spotkania.':page==='Sale konferencyjne'?'Znajdź przestrzeń dopasowaną do Twojego zespołu.':page==='Moje rezerwacje'?'Wszystkie Twoje spotkania, uporządkowane w jednym miejscu.':page==='Administracja'?'Zarządzaj przestrzenią i zespołem swojej organizacji.':'Twoje konto i preferencje w Roomly.'}</p></div>{page!=='Ustawienia'&&<Button onClick={()=>page==='Administracja'&&w.role==='admin'?setEditing({id:'',name:'',location:'',capacity:10,description:'',equipment:['Monitor','Wi-Fi'],is_active:true}):openBooking()}><Plus/>{page==='Administracja'&&w.role==='admin'?'Dodaj salę':'Nowa rezerwacja'}</Button>}</div>
-    {(page==='Dashboard'||page==='Administracja')&&<div className="stats"><div className="stat-card"><div className="stat-heading">Dostępne sale<span className="stat-icon"><DoorOpen size={17}/></span></div><div className="stat-value">{w.rooms.filter(r=>r.is_active&&available(r.id)).length}<span className="text-base text-muted-foreground font-normal ml-2">/ {w.rooms.filter(r=>r.is_active).length}</span></div><div className="stat-detail"><span className="status-dot text-success"/>W wybranym terminie</div></div><div className="stat-card"><div className="stat-heading">{w.role==='admin'&&page==='Administracja'?'Rezerwacje organizacji':'Twoje nadchodzące rezerwacje'}<span className="stat-icon"><CalendarDays size={17}/></span></div><div className="stat-value">{w.role==='admin'&&page==='Administracja'?activeRows.length:upcoming.length}</div><div className="stat-detail"><CalendarCheck2 size={12}/>Wszystko gotowe na spotkania</div></div><div className="stat-card"><div className="stat-heading">Najbliższe spotkanie<span className="stat-icon green"><Clock3 size={17}/></span></div><div className="stat-value">{upcoming[0]?fmtTime(upcoming[0].starts_at):'—'}</div><div className="stat-detail">{upcoming[0]?`${w.rooms.find(r=>r.id===upcoming[0]?.room_id)?.name} · ${fmtDate(upcoming[0].starts_at)}`:'Spokojny dzień. Zaplanuj coś dobrego.'}</div></div></div>}
-    {(page==='Dashboard'||page==='Sale konferencyjne')&&<><div className="section-heading"><div><h2>Znajdź salę na spotkanie<span className="count-tag">{w.rooms.filter(r=>r.is_active).length} sale</span></h2><p>Wybierz termin. My znajdziemy odpowiednią przestrzeń.</p></div>{page==='Dashboard'&&<Button variant="link" size="sm" onClick={()=>go(2)}>Wszystkie sale<ArrowRight/></Button>}</div>{filterBar}{page==='Sale konferencyjne'&&<div className="flex gap-3 mb-5"><div className="field flex-1"><label htmlFor="room-search">Nazwa sali</label><input id="room-search" placeholder="Szukaj sali…" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="field"><label htmlFor="capacity">Liczba uczestników</label><select id="capacity" value={capacity} onChange={e=>setCapacity(e.target.value)}><option value="0">Dowolna</option><option value="10">10 lub więcej</option><option value="20">20 lub więcej</option></select></div></div>}<div className="room-grid">{filteredRooms.filter(r=>!checked||available(r.id)).map(renderRoom)}</div>{filteredRooms.filter(r=>!checked||available(r.id)).length===0&&<div className="empty-state">Brak sal spełniających kryteria. Wybierz inny termin lub filtr.</div>}</>}
-    {(page==='Dashboard'||page==='Moje rezerwacje')&&<><div className="section-heading"><div><h2>{page==='Dashboard'?'Twoje najbliższe spotkania':'Twoje rezerwacje'}</h2>{page==='Dashboard'&&<p>Miejsce zarezerwowane. Możesz skupić się na tym, co ważne.</p>}</div>{page==='Dashboard'&&<Button variant="link" size="sm" onClick={()=>go(3)}>Wszystkie rezerwacje<ArrowRight/></Button>}</div><ReservationTable rows={page==='Dashboard'?visibleRows.slice(0,3):visibleRows}/></>}
-    {page==='Kalendarz'&&<><div className="calendar-toolbar"><div className="flex items-center gap-2"><Button variant="outline" size="icon" title="Poprzedni termin" aria-label="Poprzedni termin" onClick={()=>{const d=new Date(date+'T12:00');d.setDate(d.getDate()-(week?7:1));setDate(dayString(d));}}><ChevronLeft/></Button><Button variant="outline" size="icon" title="Następny termin" aria-label="Następny termin" onClick={()=>{const d=new Date(date+'T12:00');d.setDate(d.getDate()+(week?7:1));setDate(dayString(d));}}><ChevronRight/></Button><Button variant="outline" onClick={()=>setDate(dayString(new Date()))}>Dzisiaj</Button><span className="font-semibold ml-2">{fmtDate(date+'T12:00',{day:'numeric',month:'long',year:'numeric'})}</span></div><div className="flex items-center gap-2"><div className="field"><select aria-label="Filtruj kalendarz po sali" value={calendarRoom} onChange={e=>setCalendarRoom(e.target.value)}><option value="all">Wszystkie sale</option>{w.rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div><Button variant={!week?'secondary':'ghost'} onClick={()=>setWeek(false)}>Dzień</Button><Button variant={week?'secondary':'ghost'} onClick={()=>setWeek(true)}>Tydzień</Button></div></div>{(()=>{const rooms=w.rooms.filter(r=>r.is_active&&(calendarRoom==='all'||calendarRoom===r.id));const columns=week?Array.from({length:7},(_,i)=>{const d=new Date(date+'T12:00');d.setDate(d.getDate()+i);return {date:dayString(d),label:d.toLocaleDateString('pl-PL',{weekday:'short',day:'numeric'}),room:rooms[0]?.id??''};}):rooms.map(r=>({date,label:r.name,room:r.id}));return <div className="calendar-scroll"><div className={`calendar-grid ${week?'calendar-week':'calendar-day'}`}><div className="calendar-cell header">Godzina</div>{columns.map((c,i)=><div className="calendar-cell header" key={i}>{c.label}</div>)}{Array.from({length:10},(_,hour)=>hour+8).map(hour=><div className="contents" key={hour}><div className="calendar-cell hour">{String(hour).padStart(2,'0')}:00</div>{columns.map((c,i)=>{const time=`${String(hour).padStart(2,'0')}:00`;const next=`${String(hour+1).padStart(2,'0')}:00`;const row=activeRows.find(r=>(week&&calendarRoom==='all'?true:r.room_id===c.room)&&overlaps(new Date(`${c.date}T${time}`).toISOString(),new Date(`${c.date}T${next}`).toISOString(),r.starts_at,r.ends_at));return <div className="calendar-cell" key={i}><Button variant="ghost" className={`calendar-slot ${row?'booked':'free'}`} aria-label={row?`${row.title}, ${time}`:`Zarezerwuj ${c.label} o ${time}`} onClick={()=>row?toast.info(`${row.user_id===w.userId||w.role==='admin'?row.title:'Zajęty termin'} · ${fmtTime(row.starts_at)}–${fmtTime(row.ends_at)}`):openBooking(c.room,time,c.date)}>{row?<span><b>{fmtTime(row.starts_at)}–{fmtTime(row.ends_at)}</b><br/>{row.user_id===w.userId||w.role==='admin'?row.title:'Zajęty termin'}</span>:<><Plus size={12}/>Zarezerwuj</>}</Button></div>;})}</div>)}</div></div>;})()}<div className="flex items-center gap-5 text-xs text-muted-foreground mt-4"><span className="flex items-center gap-2"><span className="status-dot text-primary"/>Zarezerwowany termin</span><span>Strefa czasowa: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div></>}
-    {page==='Administracja'&&(w.role!=='admin'?<div className="empty-state"><ShieldCheck className="mx-auto"/><h2>Dostęp tylko dla administratora</h2>{!live&&<Button variant="outline" onClick={()=>setRoleModal(true)}>Wybierz rolę w demo</Button>}</div>:<><div className="section-heading"><h2>Sale organizacji</h2></div><div className="table-wrap"><table className="reservation-table"><thead><tr><th>Sala</th><th>Lokalizacja</th><th>Pojemność</th><th>Status</th><th></th></tr></thead><tbody>{w.rooms.map(r=><tr key={r.id}><td>{r.name}</td><td>{r.location}</td><td>{r.capacity}</td><td>{r.is_active?'Aktywna':'Nieaktywna'}</td><td><Button variant="ghost" size="icon" aria-label={`Edytuj ${r.name}`} onClick={()=>setEditing({...r})}><Pencil/></Button><Button variant="ghost" size="icon" aria-label={`${r.is_active?'Dezaktywuj':'Aktywuj'} ${r.name}`} onClick={()=>saveRoom({...r,is_active:!r.is_active}).catch(handleError)}><DoorOpen/></Button></td></tr>)}</tbody></table></div><div className="section-heading mt-7"><h2>Zespół organizacji<span className="count-tag">{w.members.length}</span></h2></div><div className="table-wrap"><table className="reservation-table"><thead><tr><th>Użytkownik</th><th>Rola</th></tr></thead><tbody>{w.members.map(m=><tr key={m.user_id}><td>{m.display_name||'Pracownik'}</td><td><div className="field"><select aria-label={`Rola ${m.display_name}`} value={m.role} onChange={e=>setRole(m.user_id,e.target.value).catch(handleError)}><option value="employee">Pracownik</option><option value="admin">Administrator</option></select></div></td></tr>)}</tbody></table></div><div className="section-heading mt-7"><h2>Rezerwacje organizacji</h2></div><ReservationTable rows={w.reservations}/><div className="section-heading mt-7"><h2>Wykorzystanie sal</h2></div><div className="grid grid-cols-2 gap-4">{w.rooms.map(r=><div className="stat-card" key={r.id}><div className="stat-heading">{r.name}</div><div className="stat-value">{Math.round(activeRows.filter(b=>b.room_id===r.id).reduce((n,b)=>n+(Date.parse(b.ends_at)-Date.parse(b.starts_at))/3600000,0)*10)/10}<span className="text-sm text-muted-foreground ml-2">godz.</span></div><div className="stat-detail">W widocznym zakresie rezerwacji</div></div>)}</div></>)}
-    {page==='Ustawienia'&&<><section className="settings-section"><h2>Profil użytkownika</h2><form className="auth-form" onSubmit={e=>{e.preventDefault();saveProfile(profileName).catch(handleError);}}><div className="field"><label htmlFor="profile-name">Imię i nazwisko</label><input id="profile-name" value={profileName} maxLength={100} required onChange={e=>setProfileName(e.target.value)}/></div><div><Button type="submit">Zapisz zmiany</Button></div></form></section><section className="settings-section"><h2>Wygląd aplikacji</h2><div className="flex gap-3"><Button variant={dark?'outline':'secondary'} onClick={()=>setDark(false)}><Sun/>Jasny</Button><Button variant={dark?'secondary':'outline'} onClick={()=>setDark(true)}><Moon/>Ciemny</Button></div></section><section className="settings-section"><h2>Organizacja</h2><p className="text-muted-foreground">{w.organization?.name} · {w.role==='admin'?'Administrator':'Pracownik'}</p>{!live?<Button variant="outline" onClick={()=>setRoleModal(true)}>Zmień rolę demonstracyjną</Button>:<Button variant="outline" onClick={signOut}><LogOut/>Wyloguj się</Button>}</section></>}
-    </>}
-    <footer className="app-footer"><span>© {new Date().getFullYear()} Roomly. Przestrzeń na dobre spotkania.</span><span>{live?'Twoja organizacja · Bezpieczne rezerwacje':'Wersja demonstracyjna · Dane fikcyjne'}<span className="mx-2">•</span>v1.0</span></footer>
-    </div></main>
-    <Dialog open={booking} onOpenChange={setBooking}><DialogContent><DialogTitle>Nowa rezerwacja</DialogTitle><DialogDescription>Wybierz przestrzeń i termin swojego spotkania.{!live?' Rezerwacja zostanie dodana tylko w demo.':''}</DialogDescription><form onSubmit={submitBooking} className="form-grid"><div className="field wide"><label htmlFor="booking-title">Tytuł spotkania</label><input id="booking-title" autoFocus value={bookingTitle} onChange={e=>setBookingTitle(e.target.value)} placeholder="np. Warsztaty zespołu projektowego" maxLength={150} required/></div><div className="field wide"><label htmlFor="booking-room">Sala konferencyjna</label><select id="booking-room" value={bookingRoom} onChange={e=>setBookingRoom(e.target.value)} required>{w.rooms.filter(r=>r.is_active).map(r=><option value={r.id} key={r.id}>{r.name} · {r.capacity} miejsc</option>)}</select></div><div className="field wide"><label htmlFor="booking-date">Data</label><input type="date" id="booking-date" value={date} min={dayString(new Date())} required onChange={e=>setDate(e.target.value)}/></div><div className="field"><label htmlFor="booking-start">Godzina rozpoczęcia</label><input id="booking-start" type="time" value={start} onChange={e=>setStart(e.target.value)} required/></div><div className="field"><label htmlFor="booking-end">Godzina zakończenia</label><input id="booking-end" type="time" value={end} onChange={e=>setEnd(e.target.value)} required/></div>{error&&<p className="form-error wide" role="alert">{error}</p>}<div className="wide flex justify-end gap-2 mt-2"><Button variant="outline" type="button" onClick={()=>setBooking(false)}>Anuluj</Button><Button type="submit" disabled={busy}>{busy?'Zapisywanie…':'Potwierdź rezerwację'}<Check/></Button></div></form></DialogContent></Dialog>
-    <Dialog open={roleModal} onOpenChange={setRoleModal}><DialogContent><DialogTitle>Wybierz rolę w demo</DialogTitle><DialogDescription>Role są symulacją, nie zabezpieczeniem. Dane pozostają wyłącznie w pamięci przeglądarki.</DialogDescription><div className="grid grid-cols-2 gap-3"><Button variant="outline" className="h-24 flex-col" onClick={()=>{changeDemoRole('employee');setRoleModal(false);if(page==='Administracja')go(0);}}><Users/>Pracownik</Button><Button variant="outline" className="h-24 flex-col" onClick={()=>{changeDemoRole('admin');setRoleModal(false);}}><ShieldCheck/>Administrator</Button></div><Button variant="link" onClick={()=>navigate({to:'/auth'})}>Przejdź do prawdziwego konta<ArrowRight/></Button></DialogContent></Dialog>
-    <Dialog open={editing!==null} onOpenChange={open=>{if(!open)setEditing(null);}}><DialogContent><DialogTitle>{editing?.id?'Edytuj salę':'Dodaj salę'}</DialogTitle><DialogDescription>Przestrzenie konferencyjne Twojej organizacji.</DialogDescription>{editing&&<form className="form-grid" onSubmit={async e=>{e.preventDefault();try{await saveRoom(editing);setEditing(null);}catch(e){handleError(e);}}}><div className="field"><label htmlFor="edit-room-name">Nazwa</label><input id="edit-room-name" value={editing.name} required minLength={2} onChange={e=>setEditing({...editing,name:e.target.value})}/></div><div className="field"><label htmlFor="edit-capacity">Pojemność</label><input id="edit-capacity" type="number" min={1} value={editing.capacity} required onChange={e=>setEditing({...editing,capacity:Number(e.target.value)})}/></div><div className="field wide"><label htmlFor="edit-location">Lokalizacja</label><input id="edit-location" value={editing.location} onChange={e=>setEditing({...editing,location:e.target.value})}/></div><div className="field wide"><label htmlFor="edit-description">Opis</label><textarea id="edit-description" value={editing.description} onChange={e=>setEditing({...editing,description:e.target.value})}/></div><div className="field wide"><label htmlFor="edit-equipment">Wyposażenie (oddziel przecinkiem)</label><input id="edit-equipment" value={editing.equipment.join(', ')} onChange={e=>setEditing({...editing,equipment:e.target.value.split(',').map(s=>s.trim())})}/></div><Button className="wide" type="submit">Zapisz salę</Button></form>}</DialogContent></Dialog>
-    <Dialog open={confirmCancel!==null} onOpenChange={open=>{if(!open)setConfirmCancel(null);}}><DialogContent><DialogTitle>Anulować rezerwację?</DialogTitle><DialogDescription>Termin zostanie zwolniony i będzie dostępny dla zespołu.</DialogDescription><div className="flex justify-end gap-3"><Button variant="outline" onClick={()=>setConfirmCancel(null)}>Zachowaj rezerwację</Button><Button variant="destructive" onClick={async()=>{if(!confirmCancel)return;try{await cancel(confirmCancel);setConfirmCancel(null);}catch(e){handleError(e);}}}>Anuluj rezerwację</Button></div></DialogContent></Dialog>
-  </div>;
+const equipmentIcons: Record<string, typeof Monitor> = {
+  Monitor,
+  "Wi-Fi": Wifi,
+  Tablica: Presentation,
+  Klimatyzacja: AirVent,
+  Wideokonferencja: Video,
+};
+const fmtDate = (
+  date: string,
+  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long" },
+) => new Date(date).toLocaleDateString("pl-PL", options);
+const fmtTime = (date: string) =>
+  new Date(date).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+export function Brand() {
+  return (
+    <Link to="/" className="brand">
+      <span className="brand-icon">
+        <DoorOpen size={34} strokeWidth={2.5} />
+      </span>
+      roomly<span className="text-primary">.</span>
+    </Link>
+  );
+}
+export function RoomlyApp({ page }: { page: Page }) {
+  const auth = useRoomlyAuth();
+  const {
+    workspace: w,
+    live,
+    busy,
+    book,
+    cancel,
+    saveRoom,
+    saveProfile,
+    setRole,
+    changeDemoRole,
+    refresh,
+  } = useWorkspace();
+  const [mobile, setMobile] = useState(false),
+    [dark, setDark] = useState(false);
+  const [date, setDate] = useState(() =>
+    !live && w.reservations[0]
+      ? dayString(new Date(w.reservations[0].starts_at))
+      : dayString(new Date()),
+  );
+  const [start, setStart] = useState("11:00"),
+    [end, setEnd] = useState("12:00"),
+    [checked, setChecked] = useState(false),
+    [search, setSearch] = useState(""),
+    [capacity, setCapacity] = useState("0");
+  const [booking, setBooking] = useState(false),
+    [bookingRoom, setBookingRoom] = useState(""),
+    [bookingTitle, setBookingTitle] = useState(""),
+    [error, setError] = useState("");
+  const [editing, setEditing] = useState<Room | null>(null),
+    [roleModal, setRoleModal] = useState(false),
+    [confirmCancel, setConfirmCancel] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState(w.displayName),
+    [orgName, setOrgName] = useState(""),
+    [week, setWeek] = useState(false),
+    [calendarRoom, setCalendarRoom] = useState("all");
+  const navigate = useNavigate();
+  const router = useRouter();
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    return () => document.documentElement.classList.remove("dark");
+  }, [dark]);
+  const activeRows = w.reservations.filter((r) => r.status === "active");
+  const ownRows = activeRows
+    .filter((r) => r.user_id === w.userId)
+    .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+  const upcoming = ownRows.filter((r) => Date.parse(r.ends_at) > Date.now());
+  const filteredRooms = w.rooms.filter(
+    (r) =>
+      r.is_active &&
+      r.name.toLowerCase().includes(search.toLowerCase()) &&
+      r.capacity >= Number(capacity),
+  );
+  const available = (roomId: string) =>
+    !!date &&
+    !!start &&
+    !!end &&
+    end > start &&
+    !activeRows.some(
+      (r) =>
+        r.room_id === roomId &&
+        overlaps(
+          new Date(`${date}T${start}`).toISOString(),
+          new Date(`${date}T${end}`).toISOString(),
+          r.starts_at,
+          r.ends_at,
+        ),
+    );
+  const openBooking = (id = "", time?: string, day?: string) => {
+    setBookingRoom(id || w.rooms.find((r) => r.is_active)?.id || "");
+    setBookingTitle("");
+    setError("");
+    if (time) {
+      setStart(time);
+      setEnd(`${String(Number(time.slice(0, 2)) + 1).padStart(2, "0")}:00`);
+    }
+    if (day) setDate(day);
+    setBooking(true);
+  };
+  const go = (index: number) => {
+    setMobile(false);
+    if (live) navigate({ to: "/app/$view", params: { view: String(index) } });
+    else {
+      const path = pagePaths[index];
+      if (path) navigate({ to: path });
+    }
+  };
+  const handleError = (e: unknown) =>
+    toast.error(e instanceof Error ? e.message : "Nie udało się wykonać operacji.");
+  const submitBooking = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await book(bookingRoom, date, start, end, bookingTitle);
+      setBooking(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udało się zapisać rezerwacji.");
+    }
+  };
+  const orgCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    try {
+      const { error } = await supabase.rpc("roomly_create_organization", { org_name: orgName });
+      if (error) throw error;
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udało się utworzyć organizacji.");
+    }
+  };
+  const signOut = async () => {
+    await router.options.context.queryClient.cancelQueries();
+    router.options.context.queryClient.clear();
+    await supabase.auth.signOut();
+    await navigate({ to: "/auth", replace: true });
+  };
+  const visibleRows =
+    page === "Moje rezerwacje"
+      ? w.reservations.filter((r) => r.user_id === w.userId)
+      : page === "Administracja"
+        ? w.reservations
+        : upcoming;
+  function ReservationTable({ rows }: { rows: Reservation[] }) {
+    return (
+      <div className="table-wrap">
+        <table className="reservation-table">
+          <thead>
+            <tr>
+              <th>Spotkanie</th>
+              <th>Sala</th>
+              <th>Data i godzina</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  <span className="meeting-name">
+                    <span className="meeting-icon">
+                      <CalendarDays size={15} />
+                    </span>
+                    {r.title}
+                  </span>
+                </td>
+                <td>{w.rooms.find((room) => room.id === r.room_id)?.name}</td>
+                <td>
+                  <span>{fmtDate(r.starts_at, { day: "numeric", month: "short" })}</span>
+                  <span className="text-muted-foreground ml-3">
+                    {fmtTime(r.starts_at)} – {fmtTime(r.ends_at)}
+                  </span>
+                </td>
+                <td>
+                  <span className={r.status === "active" ? "status-tag" : "text-muted-foreground"}>
+                    {r.status === "active" ? "Potwierdzona" : "Anulowana"}
+                  </span>
+                </td>
+                <td>
+                  {canCancelReservation(r, w.userId, w.role) ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Anuluj ${r.title}`}
+                      title="Anuluj rezerwację"
+                      onClick={() => setConfirmCancel(r.id)}
+                    >
+                      <X size={14} />
+                    </Button>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <div className="empty-state">
+            <CalendarCheck2 className="mx-auto mb-3" size={28} />
+            <p>Nie masz jeszcze rezerwacji w tym widoku.</p>
+            <Button variant="outline" onClick={() => openBooking()}>
+              <Plus />
+              Nowa rezerwacja
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+  const renderRoom = (room: Room, index: number) => {
+    const free = available(room.id);
+    return (
+      <article className="room-card" key={room.id}>
+        <div className="room-photo">
+          <img src={index % 2 === 0 ? roomA.url : roomB.url} alt={`Wnętrze ${room.name}`} />
+          <span className={`room-status ${!free ? "text-warning" : ""}`}>
+            <i className="status-dot" />
+            {free ? "Dostępna" : "Zarezerwowana"}
+          </span>
+        </div>
+        <div className="room-body">
+          <div className="room-title">
+            <h3>{room.name}</h3>
+            <span className="room-capacity">
+              <Users size={14} />
+              {room.capacity} miejsc
+            </span>
+          </div>
+          <div className="room-location">
+            <MapPin size={12} />
+            {room.location}
+          </div>
+          <div className="equipment">
+            {room.equipment.map((eq) => {
+              const Icon = equipmentIcons[eq] ?? Check;
+              return (
+                <span key={eq}>
+                  <Icon />
+                  {eq}
+                </span>
+              );
+            })}
+          </div>
+          <div className="room-footer">
+            <span>{free ? "Wolna w wybranym terminie" : "Zajęta w wybranym terminie"}</span>
+            <Button variant="outline" size="sm" onClick={() => openBooking(room.id)}>
+              Zarezerwuj
+              <ArrowUpRight size={13} />
+            </Button>
+          </div>
+        </div>
+      </article>
+    );
+  };
+  const filterBar = (
+    <div className="availability-filter">
+      <div className="field filter-field">
+        <label htmlFor="filter-date">Data spotkania</label>
+        <input
+          id="filter-date"
+          type="date"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setChecked(false);
+          }}
+          required
+        />
+      </div>
+      <div className="field filter-field">
+        <label htmlFor="filter-start">Od godziny</label>
+        <input
+          id="filter-start"
+          type="time"
+          value={start}
+          onChange={(e) => {
+            setStart(e.target.value);
+            setChecked(false);
+          }}
+          required
+        />
+      </div>
+      <div className="field filter-field">
+        <label htmlFor="filter-end">Do godziny</label>
+        <input
+          id="filter-end"
+          type="time"
+          value={end}
+          onChange={(e) => {
+            setEnd(e.target.value);
+            setChecked(false);
+          }}
+          required
+        />
+      </div>
+      <Button
+        variant="outline"
+        onClick={() => {
+          if (!date || !start || !end || end <= start) {
+            toast.error("Wybierz poprawny termin.");
+            return;
+          }
+          setChecked(true);
+        }}
+      >
+        <Search />
+        {checked ? "Zmień termin" : "Sprawdź dostępność"}
+      </Button>
+    </div>
+  );
+  return (
+    <div className="roomly-layout">
+      <aside className={`sidebar ${mobile ? "open" : ""}`}>
+        <Brand />
+        <div className="workspace-select">
+          <span className="workspace-icon">
+            <Building2 size={17} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold truncate">
+              {w.organization?.name ?? "Twoja organizacja"}
+            </div>
+            <div className="text-muted-foreground text-[10px] mt-1">Przestrzeń organizacji</div>
+          </div>
+          <ChevronDown size={13} />
+        </div>
+        <div className="nav-label">PRZESTRZEŃ ROBOCZA</div>
+        <nav className="nav-items">
+          {pages.map((name, i) => {
+            const Icon = navIcons[i] ?? LayoutDashboard;
+            if (i === 4 && w.role !== "admin") return null;
+            return (
+              <Button
+                key={name}
+                variant="ghost"
+                className={`nav-item justify-start ${name === page ? "active" : ""}`}
+                onClick={() => go(i)}
+              >
+                <Icon />
+                {name}
+                {i === 3 && upcoming.length > 0 ? (
+                  <span className="count-tag ml-auto">{upcoming.length}</span>
+                ) : null}
+              </Button>
+            );
+          })}
+        </nav>
+        <div className="sidebar-bottom">
+          <Button
+            variant="ghost"
+            className="nav-item w-full justify-start"
+            onClick={() => navigate({ to: "/o-roomly" })}
+          >
+            <CircleHelp />O Roomly
+            <ArrowUpRight className="ml-auto" />
+          </Button>
+          {!live && (
+            <div className="demo-note">
+              <span className="demo-badge">TRYB DEMO</span>
+              <p>
+                Fikcyjne dane, prawdziwa wygoda.
+                <br />
+                Zmiany znikają po odświeżeniu.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setRoleModal(true)}
+              >
+                Zmień rolę
+                <ChevronDown />
+              </Button>
+            </div>
+          )}
+          <div className="flex items-center gap-3 border-t border-border pt-4 px-2">
+            <span className="avatar">{w.displayName.slice(0, 2).toUpperCase() || "TY"}</span>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold truncate">{w.displayName || "Moje konto"}</div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                {w.role === "admin" ? "Administrator" : "Pracownik"}
+                {!live ? " · Demo" : ""}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto"
+              aria-label={live ? "Wyloguj się" : auth.user ? "Moja organizacja" : "Zaloguj się"}
+              title={live ? "Wyloguj się" : auth.user ? "Moja organizacja" : "Zaloguj się"}
+              onClick={() =>
+                live
+                  ? signOut()
+                  : auth.user
+                    ? navigate({ to: "/app/$view", params: { view: "0" } })
+                    : navigate({ to: "/auth" })
+              }
+            >
+              <LogOut size={15} />
+            </Button>
+          </div>
+        </div>
+      </aside>
+      <main className="app-main">
+        <header className="topbar">
+          <div className="topbar-left">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mobile-menu"
+              aria-label="Otwórz menu"
+              onClick={() => setMobile(!mobile)}
+            >
+              <Menu />
+            </Button>
+            <span>Przestrzeń robocza</span>
+            <ChevronRight size={12} />
+            <span className="text-foreground">{page}</span>
+          </div>
+          <div className="topbar-right">
+            <span className="topbar-date text-xs text-muted-foreground">
+              {new Date().toLocaleDateString("pl-PL", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+            {!live && <span className="demo-badge">DEMO</span>}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={dark ? "Włącz jasny motyw" : "Włącz ciemny motyw"}
+              title="Zmień motyw"
+              onClick={() => setDark(!dark)}
+            >
+              {dark ? <Sun /> : <Moon />}
+            </Button>
+            <span className="topbar-profile avatar">
+              {w.displayName.slice(0, 2).toUpperCase() || "TY"}
+            </span>
+          </div>
+        </header>
+        <div className="app-content">
+          {!w.organization && live ? (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Twoja przestrzeń, Twoje spotkania.</h1>
+                  <p className="page-subtitle">
+                    Utwórz organizację i zaproś swój zespół do lepszej pracy.
+                  </p>
+                </div>
+              </div>
+              <form className="auth-form max-w-md" onSubmit={orgCreate}>
+                <div className="field">
+                  <label htmlFor="org-name">Nazwa organizacji</label>
+                  <input
+                    id="org-name"
+                    minLength={2}
+                    maxLength={100}
+                    required
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                  />
+                </div>
+                {error && <p className="form-error">{error}</p>}
+                <Button type="submit">
+                  <Building2 />
+                  Utwórz organizację
+                </Button>
+              </form>
+              <JoinOrganization />
+            </>
+          ) : (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>
+                    {page === "Dashboard"
+                      ? `Dzień dobry, ${w.displayName.split(" ")[0] || "witaj"}!`
+                      : page}
+                    {page === "Dashboard" && <span className="ml-2 text-xl">☀️</span>}
+                  </h1>
+                  <p className="page-subtitle">
+                    {page === "Dashboard"
+                      ? "Dobra przestrzeń to początek dobrego spotkania. Co dziś planujesz?"
+                      : page === "Kalendarz"
+                        ? "Wspólny kalendarz. Miejsce dla każdego spotkania."
+                        : page === "Sale konferencyjne"
+                          ? "Znajdź przestrzeń dopasowaną do Twojego zespołu."
+                          : page === "Moje rezerwacje"
+                            ? "Wszystkie Twoje spotkania, uporządkowane w jednym miejscu."
+                            : page === "Administracja"
+                              ? "Zarządzaj przestrzenią i zespołem swojej organizacji."
+                              : "Twoje konto i preferencje w Roomly."}
+                  </p>
+                </div>
+                {page !== "Ustawienia" && (
+                  <Button
+                    onClick={() =>
+                      page === "Administracja" && w.role === "admin"
+                        ? setEditing({
+                            id: "",
+                            name: "",
+                            location: "",
+                            capacity: 10,
+                            description: "",
+                            equipment: ["Monitor", "Wi-Fi"],
+                            is_active: true,
+                          })
+                        : openBooking()
+                    }
+                  >
+                    <Plus />
+                    {page === "Administracja" && w.role === "admin"
+                      ? "Dodaj salę"
+                      : "Nowa rezerwacja"}
+                  </Button>
+                )}
+              </div>
+              {(page === "Dashboard" || page === "Administracja") && (
+                <div className="stats">
+                  <div className="stat-card">
+                    <div className="stat-heading">
+                      Dostępne sale
+                      <span className="stat-icon">
+                        <DoorOpen size={17} />
+                      </span>
+                    </div>
+                    <div className="stat-value">
+                      {w.rooms.filter((r) => r.is_active && available(r.id)).length}
+                      <span className="text-base text-muted-foreground font-normal ml-2">
+                        / {w.rooms.filter((r) => r.is_active).length}
+                      </span>
+                    </div>
+                    <div className="stat-detail">
+                      <span className="status-dot text-success" />W wybranym terminie
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-heading">
+                      {w.role === "admin" && page === "Administracja"
+                        ? "Rezerwacje organizacji"
+                        : "Twoje nadchodzące rezerwacje"}
+                      <span className="stat-icon">
+                        <CalendarDays size={17} />
+                      </span>
+                    </div>
+                    <div className="stat-value">
+                      {w.role === "admin" && page === "Administracja"
+                        ? activeRows.length
+                        : upcoming.length}
+                    </div>
+                    <div className="stat-detail">
+                      <CalendarCheck2 size={12} />
+                      Wszystko gotowe na spotkania
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-heading">
+                      Najbliższe spotkanie
+                      <span className="stat-icon green">
+                        <Clock3 size={17} />
+                      </span>
+                    </div>
+                    <div className="stat-value">
+                      {upcoming[0] ? fmtTime(upcoming[0].starts_at) : "—"}
+                    </div>
+                    <div className="stat-detail">
+                      {upcoming[0]
+                        ? `${w.rooms.find((r) => r.id === upcoming[0]?.room_id)?.name} · ${fmtDate(upcoming[0].starts_at)}`
+                        : "Spokojny dzień. Zaplanuj coś dobrego."}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(page === "Dashboard" || page === "Sale konferencyjne") && (
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <h2>
+                        Znajdź salę na spotkanie
+                        <span className="count-tag whitespace-nowrap">
+                          {w.rooms.filter((r) => r.is_active).length} sale
+                        </span>
+                      </h2>
+                      <p>Wybierz termin. My znajdziemy odpowiednią przestrzeń.</p>
+                    </div>
+                    {page === "Dashboard" && (
+                      <Button variant="link" size="sm" onClick={() => go(2)}>
+                        Wszystkie sale
+                        <ArrowRight />
+                      </Button>
+                    )}
+                  </div>
+                  {filterBar}
+                  {page === "Sale konferencyjne" && (
+                    <div className="flex gap-3 mb-5">
+                      <div className="field flex-1">
+                        <label htmlFor="room-search">Nazwa sali</label>
+                        <input
+                          id="room-search"
+                          placeholder="Szukaj sali…"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="capacity">Liczba uczestników</label>
+                        <select
+                          id="capacity"
+                          value={capacity}
+                          onChange={(e) => setCapacity(e.target.value)}
+                        >
+                          <option value="0">Dowolna</option>
+                          <option value="10">10 lub więcej</option>
+                          <option value="20">20 lub więcej</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  <div className="room-grid">
+                    {filteredRooms.filter((r) => !checked || available(r.id)).map(renderRoom)}
+                  </div>
+                  {filteredRooms.filter((r) => !checked || available(r.id)).length === 0 && (
+                    <div className="empty-state">
+                      Brak sal spełniających kryteria. Wybierz inny termin lub filtr.
+                    </div>
+                  )}
+                </>
+              )}
+              {(page === "Dashboard" || page === "Moje rezerwacje") && (
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <h2>
+                        {page === "Dashboard" ? "Twoje najbliższe spotkania" : "Twoje rezerwacje"}
+                      </h2>
+                      {page === "Dashboard" && (
+                        <p>Miejsce zarezerwowane. Możesz skupić się na tym, co ważne.</p>
+                      )}
+                    </div>
+                    {page === "Dashboard" && (
+                      <Button variant="link" size="sm" onClick={() => go(3)}>
+                        Wszystkie rezerwacje
+                        <ArrowRight />
+                      </Button>
+                    )}
+                  </div>
+                  <ReservationTable
+                    rows={page === "Dashboard" ? visibleRows.slice(0, 3) : visibleRows}
+                  />
+                </>
+              )}
+              {page === "Kalendarz" && (
+                <>
+                  <div className="calendar-toolbar">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Poprzedni termin"
+                        aria-label="Poprzedni termin"
+                        onClick={() => {
+                          const d = new Date(date + "T12:00");
+                          d.setDate(d.getDate() - (week ? 7 : 1));
+                          setDate(dayString(d));
+                        }}
+                      >
+                        <ChevronLeft />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Następny termin"
+                        aria-label="Następny termin"
+                        onClick={() => {
+                          const d = new Date(date + "T12:00");
+                          d.setDate(d.getDate() + (week ? 7 : 1));
+                          setDate(dayString(d));
+                        }}
+                      >
+                        <ChevronRight />
+                      </Button>
+                      <Button variant="outline" onClick={() => setDate(dayString(new Date()))}>
+                        Dzisiaj
+                      </Button>
+                      <span className="font-semibold ml-2">
+                        {fmtDate(date + "T12:00", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="field">
+                        <select
+                          aria-label="Filtruj kalendarz po sali"
+                          value={calendarRoom}
+                          onChange={(e) => setCalendarRoom(e.target.value)}
+                        >
+                          <option value="all">Wszystkie sale</option>
+                          {w.rooms.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button
+                        variant={!week ? "secondary" : "ghost"}
+                        onClick={() => setWeek(false)}
+                      >
+                        Dzień
+                      </Button>
+                      <Button
+                        variant={week ? "secondary" : "ghost"}
+                        onClick={() => {
+                          setWeek(true);
+                          if (calendarRoom === "all")
+                            setCalendarRoom(w.rooms.find((r) => r.is_active)?.id ?? "all");
+                        }}
+                      >
+                        Tydzień
+                      </Button>
+                    </div>
+                  </div>
+                  {(() => {
+                    const rooms = w.rooms.filter(
+                      (r) => r.is_active && (calendarRoom === "all" || calendarRoom === r.id),
+                    );
+                    const columns = week
+                      ? Array.from({ length: 7 }, (_, i) => {
+                          const d = new Date(date + "T12:00");
+                          d.setDate(d.getDate() + i);
+                          return {
+                            date: dayString(d),
+                            label: d.toLocaleDateString("pl-PL", {
+                              weekday: "short",
+                              day: "numeric",
+                            }),
+                            room: rooms[0]?.id ?? "",
+                          };
+                        })
+                      : rooms.map((r) => ({ date, label: r.name, room: r.id }));
+                    return (
+                      <div className="calendar-scroll">
+                        <div
+                          className={`calendar-grid ${week ? "calendar-week" : columns.length === 1 ? "calendar-single" : "calendar-day"}`}
+                          style={{
+                            gridTemplateColumns: `70px repeat(${Math.max(columns.length, 1)}, minmax(0,1fr))`,
+                          }}
+                        >
+                          <div className="calendar-cell header">Godzina</div>
+                          {columns.map((c, i) => (
+                            <div className="calendar-cell header" key={i}>
+                              {c.label}
+                            </div>
+                          ))}
+                          {Array.from({ length: 10 }, (_, hour) => hour + 8).map((hour) => (
+                            <div className="contents" key={hour}>
+                              <div className="calendar-cell hour">
+                                {String(hour).padStart(2, "0")}:00
+                              </div>
+                              {columns.map((c, i) => {
+                                const time = `${String(hour).padStart(2, "0")}:00`;
+                                const next = `${String(hour + 1).padStart(2, "0")}:00`;
+                                const row = activeRows.find(
+                                  (r) =>
+                                    r.room_id === c.room &&
+                                    overlaps(
+                                      new Date(`${c.date}T${time}`).toISOString(),
+                                      new Date(`${c.date}T${next}`).toISOString(),
+                                      r.starts_at,
+                                      r.ends_at,
+                                    ),
+                                );
+                                return (
+                                  <div className="calendar-cell" key={i}>
+                                    <Button
+                                      variant="ghost"
+                                      className={`calendar-slot ${row ? "booked" : "free"}`}
+                                      aria-label={
+                                        row
+                                          ? `${row.title}, ${time}`
+                                          : `Zarezerwuj ${c.label} o ${time}`
+                                      }
+                                      onClick={() =>
+                                        row
+                                          ? toast.info(
+                                              `${row.user_id === w.userId || w.role === "admin" ? row.title : "Zajęty termin"} · ${fmtTime(row.starts_at)}–${fmtTime(row.ends_at)}`,
+                                            )
+                                          : openBooking(c.room, time, c.date)
+                                      }
+                                    >
+                                      {row ? (
+                                        <span>
+                                          <b>
+                                            {fmtTime(row.starts_at)}–{fmtTime(row.ends_at)}
+                                          </b>
+                                          <br />
+                                          {row.user_id === w.userId || w.role === "admin"
+                                            ? row.title
+                                            : "Zajęty termin"}
+                                        </span>
+                                      ) : (
+                                        <>
+                                          <Plus size={12} />
+                                          Zarezerwuj
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <div className="flex items-center gap-5 text-xs text-muted-foreground mt-4">
+                    <span className="flex items-center gap-2">
+                      <span className="status-dot text-primary" />
+                      Zarezerwowany termin
+                    </span>
+                    <span>Strefa czasowa: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+                  </div>
+                </>
+              )}
+              {page === "Administracja" &&
+                (w.role !== "admin" ? (
+                  <div className="empty-state">
+                    <ShieldCheck className="mx-auto" />
+                    <h2>Dostęp tylko dla administratora</h2>
+                    {!live && (
+                      <Button variant="outline" onClick={() => setRoleModal(true)}>
+                        Wybierz rolę w demo
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="section-heading">
+                      <h2>Sale organizacji</h2>
+                    </div>
+                    <div className="table-wrap">
+                      <table className="reservation-table">
+                        <thead>
+                          <tr>
+                            <th>Sala</th>
+                            <th>Lokalizacja</th>
+                            <th>Pojemność</th>
+                            <th>Status</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {w.rooms.map((r) => (
+                            <tr key={r.id}>
+                              <td>{r.name}</td>
+                              <td>{r.location}</td>
+                              <td>{r.capacity}</td>
+                              <td>{r.is_active ? "Aktywna" : "Nieaktywna"}</td>
+                              <td>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Edytuj ${r.name}`}
+                                  onClick={() => setEditing({ ...r })}
+                                >
+                                  <Pencil />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`${r.is_active ? "Dezaktywuj" : "Aktywuj"} ${r.name}`}
+                                  onClick={() =>
+                                    saveRoom({ ...r, is_active: !r.is_active }).catch(handleError)
+                                  }
+                                >
+                                  <DoorOpen />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <InviteEmployee />
+                    <div className="section-heading mt-7">
+                      <h2>
+                        Zespół organizacji<span className="count-tag">{w.members.length}</span>
+                      </h2>
+                    </div>
+                    <div className="table-wrap">
+                      <table className="reservation-table">
+                        <thead>
+                          <tr>
+                            <th>Użytkownik</th>
+                            <th>Rola</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {w.members.map((m) => (
+                            <tr key={m.user_id}>
+                              <td>{m.display_name || "Pracownik"}</td>
+                              <td>
+                                <div className="field">
+                                  <select
+                                    aria-label={`Rola ${m.display_name}`}
+                                    value={m.role}
+                                    onChange={(e) =>
+                                      setRole(m.user_id, e.target.value).catch(handleError)
+                                    }
+                                  >
+                                    <option value="employee">Pracownik</option>
+                                    <option value="admin">Administrator</option>
+                                  </select>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="section-heading mt-7">
+                      <h2>Rezerwacje organizacji</h2>
+                    </div>
+                    <ReservationTable rows={w.reservations} />
+                    <div className="section-heading mt-7">
+                      <h2>Wykorzystanie sal</h2>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {w.rooms.map((r) => (
+                        <div className="stat-card" key={r.id}>
+                          <div className="stat-heading">{r.name}</div>
+                          <div className="stat-value">
+                            {Math.round(
+                              activeRows
+                                .filter((b) => b.room_id === r.id)
+                                .reduce(
+                                  (n, b) =>
+                                    n + (Date.parse(b.ends_at) - Date.parse(b.starts_at)) / 3600000,
+                                  0,
+                                ) * 10,
+                            ) / 10}
+                            <span className="text-sm text-muted-foreground ml-2">godz.</span>
+                          </div>
+                          <div className="stat-detail">W widocznym zakresie rezerwacji</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ))}
+              {page === "Ustawienia" && (
+                <>
+                  <section className="settings-section">
+                    <h2>Profil użytkownika</h2>
+                    <form
+                      className="auth-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        saveProfile(profileName).catch(handleError);
+                      }}
+                    >
+                      <div className="field">
+                        <label htmlFor="profile-name">Imię i nazwisko</label>
+                        <input
+                          id="profile-name"
+                          value={profileName}
+                          maxLength={100}
+                          required
+                          onChange={(e) => setProfileName(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Button type="submit">Zapisz zmiany</Button>
+                      </div>
+                    </form>
+                  </section>
+                  <section className="settings-section">
+                    <h2>Wygląd aplikacji</h2>
+                    <div className="flex gap-3">
+                      <Button
+                        variant={dark ? "outline" : "secondary"}
+                        onClick={() => setDark(false)}
+                      >
+                        <Sun />
+                        Jasny
+                      </Button>
+                      <Button
+                        variant={dark ? "secondary" : "outline"}
+                        onClick={() => setDark(true)}
+                      >
+                        <Moon />
+                        Ciemny
+                      </Button>
+                    </div>
+                  </section>
+                  <section className="settings-section">
+                    <h2>Organizacja</h2>
+                    <p className="text-muted-foreground">
+                      {w.organization?.name} · {w.role === "admin" ? "Administrator" : "Pracownik"}
+                    </p>
+                    {!live ? (
+                      <Button variant="outline" onClick={() => setRoleModal(true)}>
+                        Zmień rolę demonstracyjną
+                      </Button>
+                    ) : (
+                      <Button variant="outline" onClick={signOut}>
+                        <LogOut />
+                        Wyloguj się
+                      </Button>
+                    )}
+                  </section>
+                </>
+              )}
+            </>
+          )}
+          <footer className="app-footer">
+            <span>
+              <Link to="/materialy" className="text-primary mr-3">
+                Materiały projektu
+              </Link>
+              © {new Date().getFullYear()} Roomly. Przestrzeń na dobre spotkania.
+            </span>
+            <span>
+              {live
+                ? "Twoja organizacja · Bezpieczne rezerwacje"
+                : "Wersja demonstracyjna · Dane fikcyjne"}
+              <span className="mx-2">•</span>v1.0
+            </span>
+          </footer>
+        </div>
+      </main>
+      <Dialog open={booking} onOpenChange={setBooking}>
+        <DialogContent>
+          <DialogTitle>Nowa rezerwacja</DialogTitle>
+          <DialogDescription>
+            Wybierz przestrzeń i termin swojego spotkania.
+            {!live ? " Rezerwacja zostanie dodana tylko w demo." : ""}
+          </DialogDescription>
+          <form onSubmit={submitBooking} className="form-grid">
+            <div className="field wide">
+              <label htmlFor="booking-title">Tytuł spotkania</label>
+              <input
+                id="booking-title"
+                autoFocus
+                value={bookingTitle}
+                onChange={(e) => setBookingTitle(e.target.value)}
+                placeholder="np. Warsztaty zespołu projektowego"
+                maxLength={150}
+                required
+              />
+            </div>
+            <div className="field wide">
+              <label htmlFor="booking-room">Sala konferencyjna</label>
+              <select
+                id="booking-room"
+                value={bookingRoom}
+                onChange={(e) => setBookingRoom(e.target.value)}
+                required
+              >
+                {w.rooms
+                  .filter((r) => r.is_active)
+                  .map((r) => (
+                    <option value={r.id} key={r.id}>
+                      {r.name} · {r.capacity} miejsc
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="field wide">
+              <label htmlFor="booking-date">Data</label>
+              <input
+                type="date"
+                id="booking-date"
+                value={date}
+                min={dayString(new Date())}
+                required
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="booking-start">Godzina rozpoczęcia</label>
+              <input
+                id="booking-start"
+                type="time"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="booking-end">Godzina zakończenia</label>
+              <input
+                id="booking-end"
+                type="time"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                required
+              />
+            </div>
+            {error && (
+              <p className="form-error wide" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="wide flex justify-end gap-2 mt-2">
+              <Button variant="outline" type="button" onClick={() => setBooking(false)}>
+                Anuluj
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? "Zapisywanie…" : "Potwierdź rezerwację"}
+                <Check />
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={roleModal} onOpenChange={setRoleModal}>
+        <DialogContent>
+          <DialogTitle>Wybierz rolę w demo</DialogTitle>
+          <DialogDescription>
+            Role są symulacją, nie zabezpieczeniem. Dane pozostają wyłącznie w pamięci przeglądarki.
+          </DialogDescription>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              className="h-24 flex-col"
+              onClick={() => {
+                changeDemoRole("employee");
+                setRoleModal(false);
+                if (page === "Administracja") go(0);
+              }}
+            >
+              <Users />
+              Pracownik
+            </Button>
+            <Button
+              variant="outline"
+              className="h-24 flex-col"
+              onClick={() => {
+                changeDemoRole("admin");
+                setRoleModal(false);
+              }}
+            >
+              <ShieldCheck />
+              Administrator
+            </Button>
+          </div>
+          <Button variant="link" onClick={() => navigate({ to: "/auth" })}>
+            Przejdź do prawdziwego konta
+            <ArrowRight />
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>{editing?.id ? "Edytuj salę" : "Dodaj salę"}</DialogTitle>
+          <DialogDescription>Przestrzenie konferencyjne Twojej organizacji.</DialogDescription>
+          {editing && (
+            <form
+              className="form-grid"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await saveRoom(editing);
+                  setEditing(null);
+                } catch (e) {
+                  handleError(e);
+                }
+              }}
+            >
+              <div className="field">
+                <label htmlFor="edit-room-name">Nazwa</label>
+                <input
+                  id="edit-room-name"
+                  value={editing.name}
+                  required
+                  minLength={2}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="edit-capacity">Pojemność</label>
+                <input
+                  id="edit-capacity"
+                  type="number"
+                  min={1}
+                  value={editing.capacity}
+                  required
+                  onChange={(e) => setEditing({ ...editing, capacity: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field wide">
+                <label htmlFor="edit-location">Lokalizacja</label>
+                <input
+                  id="edit-location"
+                  value={editing.location}
+                  onChange={(e) => setEditing({ ...editing, location: e.target.value })}
+                />
+              </div>
+              <div className="field wide">
+                <label htmlFor="edit-description">Opis</label>
+                <textarea
+                  id="edit-description"
+                  value={editing.description}
+                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                />
+              </div>
+              <div className="field wide">
+                <label htmlFor="edit-equipment">Wyposażenie (oddziel przecinkiem)</label>
+                <input
+                  id="edit-equipment"
+                  value={editing.equipment.join(", ")}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      equipment: e.target.value.split(",").map((s) => s.trim()),
+                    })
+                  }
+                />
+              </div>
+              <Button className="wide" type="submit">
+                Zapisz salę
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={confirmCancel !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmCancel(null);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Anulować rezerwację?</DialogTitle>
+          <DialogDescription>
+            Termin zostanie zwolniony i będzie dostępny dla zespołu.
+          </DialogDescription>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setConfirmCancel(null)}>
+              Zachowaj rezerwację
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!confirmCancel) return;
+                try {
+                  await cancel(confirmCancel);
+                  setConfirmCancel(null);
+                } catch (e) {
+                  handleError(e);
+                }
+              }}
+            >
+              Anuluj rezerwację
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

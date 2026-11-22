@@ -28,3 +28,11 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Roomly architecture
+- Share the demo workspace through a root React context; never persist demo data or write it to Cloud, so reload clears it.
+- Keep live pages beneath `_authenticated/app/$view` and load their workspace via authenticated server functions; public demo routes never load private data.
+- Store tenant roles separately in `user_roles`; mutate tenant data only through authenticated database functions with organization checks and audit events.
+- Use a PostgreSQL half-open range exclusion constraint for active bookings; overlapping concurrent writes must fail atomically.
+- Return redacted calendar occupancy for other employees through `roomly_workspace`; direct reservation reads remain owner/admin-only.
+- Store generated room imagery as asset pointers and use semantic CSS design tokens for all interface colors.

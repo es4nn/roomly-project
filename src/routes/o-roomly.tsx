@@ -1,8 +1,125 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { Button } from '@/components/ui/button';
-import { Brand } from '@/components/roomly/app';
-import { pageHead } from '@/lib/roomly';
-import image from '@/assets/conference-a101.asset.json';
-import { ArrowRight, CalendarDays, ShieldCheck, DoorOpen, Check } from 'lucide-react';
-export const Route = createFileRoute('/o-roomly')({head:()=>pageHead('Roomly — rezerwacja sal bez chaosu','Zarządzaj salami konferencyjnymi, sprawdzaj dostępność i organizuj spotkania w jednym miejscu.'),component:Landing});
-function Landing(){return <main><header className="topbar"><Brand/><div className="flex gap-3"><Button asChild variant="ghost"><Link to="/auth">Zaloguj się</Link></Button><Button asChild><Link to="/auth">Wypróbuj Roomly<ArrowRight/></Link></Button></div></header><section className="landing-hero"><img src={image.url} alt="Jasna sala konferencyjna Roomly"/><div className="landing-copy"><h1>Rezerwacja sal bez chaosu.</h1><p>Zarządzaj salami konferencyjnymi, sprawdzaj dostępność i organizuj spotkania w jednym miejscu.</p><div className="flex flex-wrap gap-3"><Button size="lg" asChild><Link to="/auth">Wypróbuj Roomly<ArrowRight/></Link></Button><Button size="lg" variant="secondary" asChild><Link to="/">Zobacz demo</Link></Button></div></div></section><section className="pricing-section"><h2>Mniej szukania. Więcej współpracy.</h2><div className="grid md:grid-cols-3 gap-8 my-8">{[{icon:DoorOpen,title:'Wybierz przestrzeń',text:'Znajdź salę z wyposażeniem i miejscem dla całego zespołu.'},{icon:CalendarDays,title:'Zarezerwuj termin',text:'Jeden kalendarz. Aktualna dostępność. Żadnych podwójnych rezerwacji.'},{icon:ShieldCheck,title:'Zarządzaj z łatwością',text:'Własna organizacja, bezpieczne role i uporządkowane zasoby.'}].map(item=><div key={item.title}><item.icon className="text-primary mb-4"/><h3 className="font-semibold mb-2">{item.title}</h3><p className="text-sm text-muted-foreground leading-7">{item.text}</p></div>)}</div><Button variant="outline" asChild><Link to="/">Zobacz dashboard Roomly<ArrowRight/></Link></Button></section><section className="pricing-section border-t border-border"><h2>Plan dopasowany do Twojej organizacji.</h2><p className="text-muted-foreground mb-7">Przykładowy model abonamentowy — bez obsługi płatności.</p><div className="pricing-grid">{[{name:'Basic',price:19,items:['Przeglądanie sal','Tworzenie rezerwacji','Wspólny kalendarz','Podstawowe zarządzanie salami']},{name:'Pro',price:39,items:['Wszystkie funkcje Basic','Rozbudowane statystyki','Dodatkowe funkcje administracyjne','Analiza wykorzystania sal']}].map(plan=><article className="pricing-plan" key={plan.name}><h3 className="font-semibold text-xl">{plan.name}</h3><p className="text-4xl font-semibold my-5">{plan.price} zł<span className="text-xs text-muted-foreground font-normal block mt-2">/ użytkownik / miesiąc</span></p><ul className="space-y-3 mb-7">{plan.items.map(i=><li className="flex gap-2 text-sm" key={i}><Check size={16} className="text-success"/>{i}</li>)}</ul><Button asChild className="w-full"><Link to="/auth">Zacznij z Roomly<ArrowRight/></Link></Button></article>)}</div></section><footer className="pricing-section border-t border-border text-muted-foreground text-xs">© 2026 Roomly · WSB Merito · Projekt SaaS</footer></main>;}
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Brand } from "@/components/roomly/app";
+import { pageHead, subscriptionPlans } from "@/lib/roomly";
+import image from "@/assets/conference-a101.asset.json";
+import { ArrowRight, CalendarDays, ShieldCheck, DoorOpen, Check } from "lucide-react";
+export const Route = createFileRoute("/o-roomly")({
+  head: () =>
+    pageHead(
+      "Roomly — rezerwacja sal bez chaosu",
+      "Zarządzaj salami konferencyjnymi, sprawdzaj dostępność i organizuj spotkania w jednym miejscu.",
+    ),
+  component: Landing,
+});
+function Landing() {
+  return (
+    <main>
+      <header className="topbar">
+        <Brand />
+        <div className="flex gap-3">
+          <Button asChild variant="ghost">
+            <Link to="/auth">Zaloguj się</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/auth">
+              Wypróbuj Roomly
+              <ArrowRight />
+            </Link>
+          </Button>
+        </div>
+      </header>
+      <section className="landing-hero">
+        <img src={image.url} alt="Jasna sala konferencyjna Roomly" />
+        <div className="landing-copy">
+          <h1>Rezerwacja sal bez chaosu.</h1>
+          <p>
+            Zarządzaj salami konferencyjnymi, sprawdzaj dostępność i organizuj spotkania w jednym
+            miejscu.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button size="lg" asChild>
+              <Link to="/auth">
+                Wypróbuj Roomly
+                <ArrowRight />
+              </Link>
+            </Button>
+            <Button size="lg" variant="secondary" asChild>
+              <Link to="/">Zobacz demo</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+      <section className="pricing-section">
+        <h2>Mniej szukania. Więcej współpracy.</h2>
+        <div className="grid md:grid-cols-3 gap-8 my-8">
+          {[
+            {
+              icon: DoorOpen,
+              title: "Wybierz przestrzeń",
+              text: "Znajdź salę z wyposażeniem i miejscem dla całego zespołu.",
+            },
+            {
+              icon: CalendarDays,
+              title: "Zarezerwuj termin",
+              text: "Jeden kalendarz. Aktualna dostępność. Żadnych podwójnych rezerwacji.",
+            },
+            {
+              icon: ShieldCheck,
+              title: "Zarządzaj z łatwością",
+              text: "Własna organizacja, bezpieczne role i uporządkowane zasoby.",
+            },
+          ].map((item) => (
+            <div key={item.title}>
+              <item.icon className="text-primary mb-4" />
+              <h3 className="font-semibold mb-2">{item.title}</h3>
+              <p className="text-sm text-muted-foreground leading-7">{item.text}</p>
+            </div>
+          ))}
+        </div>
+        <Button variant="outline" asChild>
+          <Link to="/">
+            Zobacz dashboard Roomly
+            <ArrowRight />
+          </Link>
+        </Button>
+      </section>
+      <section className="pricing-section border-t border-border">
+        <h2>Plan dopasowany do Twojej organizacji.</h2>
+        <p className="text-muted-foreground mb-7">
+          Przykładowy model abonamentowy — bez obsługi płatności.
+        </p>
+        <div className="pricing-grid">
+          {subscriptionPlans.map((plan) => (
+            <article className="pricing-plan" key={plan.name}>
+              <h3 className="font-semibold text-xl">{plan.name}</h3>
+              <p className="text-4xl font-semibold my-5">
+                {plan.price} zł
+                <span className="text-xs text-muted-foreground font-normal block mt-2">
+                  / użytkownik / miesiąc
+                </span>
+              </p>
+              <ul className="space-y-3 mb-7">
+                {plan.items.map((i) => (
+                  <li className="flex gap-2 text-sm" key={i}>
+                    <Check size={16} className="text-success" />
+                    {i}
+                  </li>
+                ))}
+              </ul>
+              <Button asChild className="w-full">
+                <Link to="/auth">
+                  Zacznij z Roomly
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </article>
+          ))}
+        </div>
+      </section>
+      <footer className="pricing-section border-t border-border text-muted-foreground text-xs">
+        © 2026 Roomly · WSB Merito · Projekt SaaS
+      </footer>
+    </main>
+  );
+}

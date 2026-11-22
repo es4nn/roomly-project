@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AdministracjaRouteImport } from './routes/administracja'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as KalendarzRouteImport } from './routes/kalendarz'
+import { Route as MaterialyRouteImport } from './routes/materialy'
 import { Route as ORoomlyRouteImport } from './routes/o-roomly'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RezerwacjeRouteImport } from './routes/rezerwacje'
@@ -43,6 +44,11 @@ const AuthRoute = AuthRouteImport.update({
 const KalendarzRoute = KalendarzRouteImport.update({
   id: '/kalendarz',
   path: '/kalendarz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaterialyRoute = MaterialyRouteImport.update({
+  id: '/materialy',
+  path: '/materialy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ORoomlyRoute = ORoomlyRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/administracja': typeof AdministracjaRoute
   '/auth': typeof AuthRoute
   '/kalendarz': typeof KalendarzRoute
+  '/materialy': typeof MaterialyRoute
   '/o-roomly': typeof ORoomlyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/rezerwacje': typeof RezerwacjeRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/administracja': typeof AdministracjaRoute
   '/auth': typeof AuthRoute
   '/kalendarz': typeof KalendarzRoute
+  '/materialy': typeof MaterialyRoute
   '/o-roomly': typeof ORoomlyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/rezerwacje': typeof RezerwacjeRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/administracja': typeof AdministracjaRoute
   '/auth': typeof AuthRoute
   '/kalendarz': typeof KalendarzRoute
+  '/materialy': typeof MaterialyRoute
   '/o-roomly': typeof ORoomlyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/rezerwacje': typeof RezerwacjeRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/administracja'
     | '/auth'
     | '/kalendarz'
+    | '/materialy'
     | '/o-roomly'
     | '/reset-password'
     | '/rezerwacje'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/administracja'
     | '/auth'
     | '/kalendarz'
+    | '/materialy'
     | '/o-roomly'
     | '/reset-password'
     | '/rezerwacje'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '/administracja'
     | '/auth'
     | '/kalendarz'
+    | '/materialy'
     | '/o-roomly'
     | '/reset-password'
     | '/rezerwacje'
@@ -160,6 +172,7 @@ export interface RootRouteChildren {
   AdministracjaRoute: typeof AdministracjaRoute
   AuthRoute: typeof AuthRoute
   KalendarzRoute: typeof KalendarzRoute
+  MaterialyRoute: typeof MaterialyRoute
   ORoomlyRoute: typeof ORoomlyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RezerwacjeRoute: typeof RezerwacjeRoute
@@ -202,6 +215,13 @@ declare module '@tanstack/react-router' {
       path: '/kalendarz'
       fullPath: '/kalendarz'
       preLoaderRoute: typeof KalendarzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/materialy': {
+      id: '/materialy'
+      path: '/materialy'
+      fullPath: '/materialy'
+      preLoaderRoute: typeof MaterialyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/o-roomly': {
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdministracjaRoute: AdministracjaRoute,
   AuthRoute: AuthRoute,
   KalendarzRoute: KalendarzRoute,
+  MaterialyRoute: MaterialyRoute,
   ORoomlyRoute: ORoomlyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RezerwacjeRoute: RezerwacjeRoute,
