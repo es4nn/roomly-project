@@ -1,26 +1,22 @@
-# Roomly Project
+# Roomly - System rezerwacji sal konferencyjnych
 
-Implement exactly the screenshot and nothing else
+**Roomly** to aplikacja webowa SaaS umożliwiająca firmom wygodne zarządzanie salami konferencyjnymi i ich rezerwacjami. System pozwala pracownikom sprawdzać dostępność sal, rezerwować terminy i zarządzać własnymi rezerwacjami, a administratorom kontrolować sale oraz rezerwacje w organizacji.
 
-This project was built with [Lovable](https://lovable.dev).
+### Technologie
+- React + TypeScript
+- Tailwind CSS
+- Supabase / PostgreSQL
+- Lovable - rozwój i hosting aplikacji
 
-**Live app**: https://roomly-project.lovable.app
+### Funkcjonalności
+- Rezerwowanie sal z kontrolą konfliktów terminów.
+- Kalendarz dostępności sal.
+- Role pracownika i administratora.
+- Zarządzanie salami i rezerwacjami.
+- Uwierzytelnianie użytkowników.
+- Obsługa wielu organizacji z separacją danych.
 
-## Build with Lovable
+### Projekt akademicki
+Aplikacja została przygotowana w ramach przedmiotu **Wprowadzenie do chmury obliczeniowej** na Uniwersytecie WSB Merito jako rozwinięcie wcześniejszych projektów architektury IaaS i PaaS.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c371ac37-fccb-41c5-ba86-8cf793610627).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+**Demo:** https://roomly-project.lovable.app
