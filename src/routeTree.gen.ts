@@ -11,6 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AdministracjaRouteImport } from './routes/administracja'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as KalendarzRouteImport } from './routes/kalendarz'
+import { Route as ORoomlyRouteImport } from './routes/o-roomly'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RezerwacjeRouteImport } from './routes/rezerwacje'
+import { Route as SaleRouteImport } from './routes/sale'
+import { Route as UstawieniaRouteImport } from './routes/ustawienia'
 import { Route as AuthenticatedAppViewRouteImport } from './routes/_authenticated/app/$view'
 
 const IndexRoute = IndexRouteImport.update({
@@ -22,6 +30,46 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdministracjaRoute = AdministracjaRouteImport.update({
+  id: '/administracja',
+  path: '/administracja',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KalendarzRoute = KalendarzRouteImport.update({
+  id: '/kalendarz',
+  path: '/kalendarz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ORoomlyRoute = ORoomlyRouteImport.update({
+  id: '/o-roomly',
+  path: '/o-roomly',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RezerwacjeRoute = RezerwacjeRouteImport.update({
+  id: '/rezerwacje',
+  path: '/rezerwacje',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SaleRoute = SaleRouteImport.update({
+  id: '/sale',
+  path: '/sale',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UstawieniaRoute = UstawieniaRouteImport.update({
+  id: '/ustawienia',
+  path: '/ustawienia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppViewRoute = AuthenticatedAppViewRouteImport.update({
   id: '/app/$view',
   path: '/app/$view',
@@ -30,29 +78,93 @@ const AuthenticatedAppViewRoute = AuthenticatedAppViewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/administracja': typeof AdministracjaRoute
+  '/auth': typeof AuthRoute
+  '/kalendarz': typeof KalendarzRoute
+  '/o-roomly': typeof ORoomlyRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/rezerwacje': typeof RezerwacjeRoute
+  '/sale': typeof SaleRoute
+  '/ustawienia': typeof UstawieniaRoute
   '/app/$view': typeof AuthenticatedAppViewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/administracja': typeof AdministracjaRoute
+  '/auth': typeof AuthRoute
+  '/kalendarz': typeof KalendarzRoute
+  '/o-roomly': typeof ORoomlyRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/rezerwacje': typeof RezerwacjeRoute
+  '/sale': typeof SaleRoute
+  '/ustawienia': typeof UstawieniaRoute
   '/app/$view': typeof AuthenticatedAppViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/administracja': typeof AdministracjaRoute
+  '/auth': typeof AuthRoute
+  '/kalendarz': typeof KalendarzRoute
+  '/o-roomly': typeof ORoomlyRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/rezerwacje': typeof RezerwacjeRoute
+  '/sale': typeof SaleRoute
+  '/ustawienia': typeof UstawieniaRoute
   '/_authenticated/app/$view': typeof AuthenticatedAppViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app/$view'
+  fullPaths:
+    | '/'
+    | '/administracja'
+    | '/auth'
+    | '/kalendarz'
+    | '/o-roomly'
+    | '/reset-password'
+    | '/rezerwacje'
+    | '/sale'
+    | '/ustawienia'
+    | '/app/$view'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app/$view'
-  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/app/$view'
+  to:
+    | '/'
+    | '/administracja'
+    | '/auth'
+    | '/kalendarz'
+    | '/o-roomly'
+    | '/reset-password'
+    | '/rezerwacje'
+    | '/sale'
+    | '/ustawienia'
+    | '/app/$view'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/administracja'
+    | '/auth'
+    | '/kalendarz'
+    | '/o-roomly'
+    | '/reset-password'
+    | '/rezerwacje'
+    | '/sale'
+    | '/ustawienia'
+    | '/_authenticated/app/$view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AdministracjaRoute: typeof AdministracjaRoute
+  AuthRoute: typeof AuthRoute
+  KalendarzRoute: typeof KalendarzRoute
+  ORoomlyRoute: typeof ORoomlyRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  RezerwacjeRoute: typeof RezerwacjeRoute
+  SaleRoute: typeof SaleRoute
+  UstawieniaRoute: typeof UstawieniaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -69,6 +181,62 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/administracja': {
+      id: '/administracja'
+      path: '/administracja'
+      fullPath: '/administracja'
+      preLoaderRoute: typeof AdministracjaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kalendarz': {
+      id: '/kalendarz'
+      path: '/kalendarz'
+      fullPath: '/kalendarz'
+      preLoaderRoute: typeof KalendarzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o-roomly': {
+      id: '/o-roomly'
+      path: '/o-roomly'
+      fullPath: '/o-roomly'
+      preLoaderRoute: typeof ORoomlyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rezerwacje': {
+      id: '/rezerwacje'
+      path: '/rezerwacje'
+      fullPath: '/rezerwacje'
+      preLoaderRoute: typeof RezerwacjeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sale': {
+      id: '/sale'
+      path: '/sale'
+      fullPath: '/sale'
+      preLoaderRoute: typeof SaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ustawienia': {
+      id: '/ustawienia'
+      path: '/ustawienia'
+      fullPath: '/ustawienia'
+      preLoaderRoute: typeof UstawieniaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/$view': {
@@ -95,6 +263,14 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AdministracjaRoute: AdministracjaRoute,
+  AuthRoute: AuthRoute,
+  KalendarzRoute: KalendarzRoute,
+  ORoomlyRoute: ORoomlyRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  RezerwacjeRoute: RezerwacjeRoute,
+  SaleRoute: SaleRoute,
+  UstawieniaRoute: UstawieniaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
